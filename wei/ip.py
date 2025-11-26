@@ -10,6 +10,7 @@ from arp import *
 from fcntl import ioctl
 import subprocess
 import math
+import binascii
 
 SIOCGIFMTU = 0x8921
 SIOCGIFNETMASK = 0x891b
@@ -237,7 +238,7 @@ def initIP(interface,opts=None):
 	myIP = getIP(interface)
 	MTU = getMTU(interface)
 	netmask = getNetmask(interface)
-	defaultGW = getDefaultGW(interface).to_bytes(6, 'big')
+	defaultGW = getDefaultGW(interface)
 	
 	#Control de errores: Opciones
 	if (opts is not None and len(opts) > IP_MAX_HLEN - 20):
@@ -300,9 +301,10 @@ def sendIPDatagram(dstIP,data,protocol):
 	num_frag = math.ceil(len(data) / payload_size)
 	
 	#Calculamos la direccion MAC destino
-	dstMac = defaultGW
 	if ((netmask & dstIP) == (netmask & myIP)):
 		dstMac = ARPResolution(dstIP)
+	else:
+		dstMac = ARPResolution(defaultGW)
 	
 	for i in range(num_frag):
 		#Creamos los fragmentos

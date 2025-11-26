@@ -169,7 +169,7 @@ def processARPReply(data:bytes,MAC:bytes)->None:
 	
 	#Comprobamos que el ARP Reply es para la IP que hemos preguntado
 	with globalLock:
-		if (sendingIp != struct.pack('!I', requestedIP)):
+		if (awaitingResponse != True and sendingIp != struct.pack('!I', requestedIP)):
 			return
 	
 	#Guardamos MAC

@@ -37,7 +37,7 @@ if __name__ == "__main__":
 	parser.add_argument('--addOptions', dest='addOptions', default=False, action='store_true',help='Añadir opciones a los datagranas IP')
 	parser.add_argument('--dataFile',dest='dataFile',default = False,help='Fichero con datos a enviar')
 	#TODO: Opción --icmpsize
-	parser.add_argument('--icmpsize',dest='icmpsize',default = 0,help='Tamaño mínimo en bytes de los paquetes ICMP Request')
+	parser.add_argument('--icmpsize',dest='icmpsize',type = int, default = 0,help='Tamaño mínimo en bytes de los paquetes ICMP Request')
 	args = parser.parse_args()
 
 	if args.debug:

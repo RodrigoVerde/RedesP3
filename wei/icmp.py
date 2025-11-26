@@ -128,8 +128,8 @@ def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP,minSize = 0,padding
 	icmp_message[8:] = data
 	
 	#Añadimos relleno para que el paquete sea del tamaño pedido
-	if (len(icmp_message) < minSize):
-		icmp_message[len(ismp_message):] = bytearray(minSize - len(ismp_message))
+	while(len(icmp_message) < minSize):
+		icmp_message[len(icmp_message):] = padding[0:minSize - len(icmp_message)]
 	
 	#Checksum: Numero de bytes pares
 	if (len(icmp_message) % 2 != 0):
