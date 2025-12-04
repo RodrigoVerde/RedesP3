@@ -7,6 +7,7 @@
 '''
 from ip import *
 import struct
+import binascii
 
 UDP_HLEN = 8
 UDP_PROTO = 17
@@ -57,7 +58,10 @@ def process_UDP_datagram(us,header,data,srcIP):
 	payload = data[UDP_HLEN:]
 	
 	#Loggear
-	logging.debug(f'Puerto origen: {srcPort}\nPuerto destino: {dstPort}\nDatos contenidos en el datagrama UDP: {payload}')
+	a = int.from_bytes(srcPort, 'big')
+	b = int.from_bytes(dstPort, 'big')
+	c = binascii.hexlify(payload)
+	logging.debug(f'Puerto origen: {a}\nPuerto destino: {b}\nDatos contenidos en el datagrama UDP: {c}')
 
 
 def sendUDPDatagram(data,dstPort,dstIP):

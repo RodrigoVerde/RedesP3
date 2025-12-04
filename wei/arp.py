@@ -344,6 +344,9 @@ def ARPResolution(ip:int) -> bytes:
 				requestedIP = None
 				return resolvedMAC
 	
+	with globalLock:
+		awaitingResponse = False
+	
 	return None
 
 def stopARP()->int:
