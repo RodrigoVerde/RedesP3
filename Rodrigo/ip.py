@@ -149,7 +149,7 @@ def process_IP_datagram(us,header,data,srcMac):
     flags_raw = byte_6 >> 5   
     flag_df = (flags_raw & 0b010) > 0  
     flag_mf = (flags_raw & 0b001) > 0  
-    offset = ((byte_6 & 0x1F) << 8) + byte_7 
+    offset = (int.from_bytes(data[6:8], 'big') & 0x1fff)
     
     timeToLive = data[8]
     protocolo = data[9] 
@@ -178,6 +178,11 @@ def process_IP_datagram(us,header,data,srcMac):
         logging.debug("Checksum IP incorrecto. Descartando paquete.")
         return 
     
+    #  Comprobar Fragmentación 
+    if (offset != 0 ):
+        logging.debug(f"Paquete IP fragmentado. Descartando (no se reensambla).{offset}")
+        return
+    
     #  Loggear campos solicitados
     logging.debug("--- CAMPOS DE LA CABECERA IP ---")
     logging.debug(f"Longitud Cabecera: {ihl_en_bytes} bytes")
@@ -190,10 +195,6 @@ def process_IP_datagram(us,header,data,srcMac):
     logging.debug(f"IP Origen:         {ipOrigen}")
     logging.debug(f"IP Destino:        {ipDestino}")
 
-    #  Comprobar Fragmentación 
-    if (offset != 0 or flag_mf):
-        logging.debug("Paquete IP fragmentado. Descartando (no se reensambla).")
-        return
     
     #  Pasar al Nivel Superior 
     
@@ -203,8 +204,7 @@ def process_IP_datagram(us,header,data,srcMac):
     
     payload = data[ihl_en_bytes:]
     
-    logging.debug(f"Pasando {len(payload)} bytes de datos al handler del protocolo {protocolo}")
-    protocols[protocolo](payload)
+    protocols[protocolo](us, header, payload, ip_origen_bytes)
 
 
 
@@ -255,15 +255,15 @@ def initIP(interface,opts=None):
     if (initARP(interface) == -1):
         return False
 
-    myIP = getIP()
-    MTU = getMTU()
-    netmask = getNetmask()
-    defaultGW = getDefaultGW()
+    myIP = getIP(interface)
+    MTU = getMTU(interface)
+    netmask = getNetmask(interface)
+    defaultGW = getDefaultGW(interface)
     ipOpts = opts
 
     registerEthCallback(process_IP_datagram, ETHERTYPE)
 
-    IPID = 0x000A
+    IPID = 10
 
     return True
 
@@ -297,12 +297,12 @@ def sendIPDatagram(dstIP,data,protocol):
     ip_header = bytearray(20)
     ip_header[0] = 0x40
     ip_header[1] = 0x01
-    ip_header[2:4] = struct.pack('!H', 0)
-    ip_header[4:6] = struct.pack('!H', IPID)
-    ip_header[6:8] = struct.pack('!H', 0)
+    ip_header[2:4] = bytes([0x00, 0x00])
+    ip_header[4:6] = IPID.to_bytes(2, 'big')
+    ip_header[6:8] = bytes([0x00, 0x00])
     ip_header[8] = 64
     ip_header[9] = protocol
-    ip_header[10:12] = struct.pack('!H', 0)
+    ip_header[10:12] = bytes([0x00, 0x00])
     ip_header[12:16] = struct.pack('!I', myIP)
     ip_header[16:20] = struct.pack('!I', dstIP)
 
@@ -361,7 +361,6 @@ def sendIPDatagram(dstIP,data,protocol):
             
         
         current_header[6:8] = struct.pack('!H', flags_offset_value)
-        
         # Calcular Checksum
         chk_val = chksum(current_header) 
         current_header[10:12] = struct.pack('H', chk_val)

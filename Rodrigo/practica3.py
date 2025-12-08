@@ -23,7 +23,7 @@ DST_PORT = 53
 ICMP_ECHO_REQUEST_TYPE = 8
 ICMP_ECHO_REQUEST_CODE = 0
 # TODO: Cambiar ICMP_ID según enunciado
-ICMP_ID = 0
+ICMP_ID = 10
 
 ipRROption = bytes([7,11,4,0,0,0,0,0,0,0,0,0])
 
@@ -37,6 +37,7 @@ if __name__ == "__main__":
 	parser.add_argument('--addOptions', dest='addOptions', default=False, action='store_true',help='Añadir opciones a los datagranas IP')
 	parser.add_argument('--dataFile',dest='dataFile',default = False,help='Fichero con datos a enviar')
 	#TODO: Opción --icmpsize
+	parser.add_argument('--icmpsize',dest='icmpsize',type = int, default = 0,help='Tamaño mínimo en bytes de los paquetes ICMP Request')
 	args = parser.parse_args()
 
 	if args.debug:
@@ -66,26 +67,23 @@ if __name__ == "__main__":
 			#Pasamos los datos de cadena a bytes
 			udp_data = data.encode()
 	
-	icmp_data = b'ABCDEFGHIJKL'
-	#TODO: construir mensaje ICMP según opción --icmpsize
+	icmp_data = b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	#TODO: construir mensaje ICMP según opción --icmpsize -> Ya esta implementado sobre la funcion sendICMPMessage
 	
 	startEthernetLevel(args.interface)
 	initICMP()
 	initUDP()
 	if initIP(args.interface,ipOpts) == False:
 		logging.error('Inicializando nivel IP')
-		sys.exit(-1)
-
-	
-	
+		sys.exit(-1)	
 	
 	while True:
 		try:
-			msg = input('\n\t0x16\n\tIntroduzca opcion:\n\t1.Enviar ping\n\t2.Enviar datagrama UDP:')
+			msg = input('\n\t0x16\n\tIntroduzca opcion:\n\t1.Enviar ping\n\t2.Enviar datagrama UDP:\n')
 			if msg == 'q':
 				break
 			elif msg == '1':
-				sendICMPMessage(icmp_data,ICMP_ECHO_REQUEST_TYPE,ICMP_ECHO_REQUEST_CODE,ICMP_ID,ICMP_SEQNUM,struct.unpack('!I',socket.inet_aton(args.dstIP))[0])
+				sendICMPMessage(icmp_data,ICMP_ECHO_REQUEST_TYPE,ICMP_ECHO_REQUEST_CODE,ICMP_ID,ICMP_SEQNUM,struct.unpack('!I',socket.inet_aton(args.dstIP))[0], minSize=args.icmpsize, padding=icmp_data)
 				ICMP_SEQNUM += 1
 			elif msg == '2':
 				sendUDPDatagram(udp_data,DST_PORT,struct.unpack('!I',socket.inet_aton(args.dstIP))[0])

@@ -47,42 +47,28 @@ def process_ICMP_message(us,header,data,srcIp):
         Retorno: Ninguno
           
     '''
+    if(chksum(data) != 0):
+        return
 
     tipo = data[0]
     code = data[1]
-    checksum = data[2:4]
-    identifier = data[4:6]
-    seqN = data[6:8]
+    identifier = int.from_bytes(data[4:6], 'big')
+    seqNum = int.from_bytes(data[6:8], 'big')
 
-    header_para_calcular = bytearray(data[:8])
-    header_para_calcular[2] = 0
-    header_para_calcular[3] = 0
-
-    chksumCalculado_int = chksum(header_para_calcular)
-
-    try:
-        chksumCalculado_bytes = struct.pack('H', chksumCalculado_int)
-    except struct.error:
-        logging.warning("Error al empaquetar checksum calculado.")
-        return
-
-    if (chksumCalculado_bytes != checksum):
-        logging.debug("Checksum IP incorrecto. Descartando paquete.")
-        return 
 
     logging.debug("--- CAMPOS DE LA CABECERA ICMP ---")
     logging.debug(f"Tipo:      {tipo} ")
     logging.debug(f"Código:    {code}")
 
     if tipo == ICMP_ECHO_REQUEST_TYPE:
-        sendICMPMessage(data[8:], ICMP_ECHO_REPLY_TYPE, 0, identifier, seqN+1, srcIp)
+        sendICMPMessage(data[8:], ICMP_ECHO_REPLY_TYPE, 0, identifier, seqNum, int.from_bytes(srcIp, 'big'))
     elif tipo == ICMP_ECHO_REPLY_TYPE:
         with timeLock:
-            repTime = icmp_send_times[srcIp+identifier+seqN]
-            logging.debug(f"Tiempo de respuesta: {repTime - time.time()}")
+            repTime = icmp_send_times[int.from_bytes(srcIp, 'big') + identifier + seqNum]
+            logging.debug(f"Tiempo de respuesta: {time.time()- repTime}")
     
 
-def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP):
+def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP,minSize = 0,padding = b'0'):
     '''
         Nombre: sendICMPMessage
         Descripción: Esta función construye un mensaje ICMP y lo envía.
@@ -117,14 +103,20 @@ def sendICMPMessage(data,type,code,icmp_id,icmp_seqnum,dstIP):
     header = bytearray(8)
     header[0] = type
     header[1] = code
-    header[2:4] = 0
-    header[4:6] = icmp_id
-    header[6:8] = icmp_seqnum
+    header[2:4] = struct.pack('!H', 0)
+    header[4:6] = icmp_id.to_bytes(2, 'big')
+    header[6:8] = icmp_seqnum.to_bytes(2, 'big')
 
     icmp_message= header + data
 
-    chk_val = chksum(icmp_message) 
-    icmp_message[2:4] = struct.pack('H', chk_val)
+    while((type == ICMP_ECHO_REQUEST_TYPE) and ((len(icmp_message) - 8) < minSize)):
+        icmp_message[len(icmp_message):] = padding[0:minSize - (len(icmp_message) - 8)]
+
+        
+    if (len(icmp_message) % 2 != 0):
+        icmp_message.append(0)
+
+    icmp_message[2:4] = chksum(icmp_message).to_bytes(2, 'little')
 
     if type == ICMP_ECHO_REQUEST_TYPE:
         with timeLock:

@@ -48,16 +48,19 @@ def process_UDP_datagram(us,header,data,srcIP):
           
     '''
     srcPort_bytes = data[0:2]
-    srcPort = socket.inet_ntoa(srcPort_bytes)
+    srcPort = int.from_bytes(srcPort_bytes, 'big')
     dstPort_bytes = data[2:4]
-    dstPort = socket.inet_ntoa(dstPort_bytes)
-    lenght = data[4:5]
+    dstPort = int.from_bytes(dstPort_bytes, 'big')
+    lenght_bytes = data[4:5]
+    lenght = int.from_bytes(lenght_bytes, 'big')
+    datos = data[UDP_HLEN:]
 
     
     logging.debug("--- CAMPOS DE LA CABECERA UDP ---")
     logging.debug(f"Puerto origen:      {srcPort} ")
     logging.debug(f"Puerto destino:     {dstPort}")
     logging.debug(f"Tamaño:             {lenght}")
+    logging.debug(f"Contenido:          {data}")
 
 
 def sendUDPDatagram(data,dstPort,dstIP):
@@ -80,14 +83,13 @@ def sendUDPDatagram(data,dstPort,dstIP):
     '''
     udp_datagram = bytearray(4)
 
-    srcPort = getUDPSourcePort()
 
-    udp_datagram[0] = srcPort
-    udp_datagram[1] = dstPort
-    udp_datagram[2] = UDP_HLEN + len(data)
-    udp_datagram[3] = 0
+    udp_datagram[0:2] = getUDPSourcePort().to_bytes(2, 'big')
+    udp_datagram[2:4] = dstPort.to_bytes(2, 'big')
+    udp_datagram[4:6] = (UDP_HLEN + len(data)).to_bytes(2, 'big')
+    udp_datagram[6:UDP_HLEN] =bytes([0x00, 0x00])
 
-    udp_datagram.append(data)
+    udp_datagram[UDP_HLEN:] = data
 
     return sendIPDatagram(dstIP, udp_datagram, UDP_PROTO)
 
